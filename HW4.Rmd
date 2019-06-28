@@ -1,0 +1,179 @@
+---
+title: "HW4"
+author: "Ziran Xu"
+date: "2019/2/22"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Q1
+
+(a)
+
+```{r}
+s_max=95;ds=1;N=24;sigma=0.18;r=0.02;k=12;t=0.5;s0=10
+dt=t/N
+payoff=matrix(NA,ncol = N+1,nrow = s_max/ds+1)
+s_final = seq(from = s_max,to =0 ,by=-ds)
+for(i in 1:(s_max/ds+1))
+{
+  payoff[i,N+1] = max(0,s_final[i]-k)
+}
+for(j in 1:(N+1))
+{
+  payoff[s_max/ds+1,j]=0
+  payoff[1,j] = s_max-k
+}
+for(j in (N):1)
+{
+  A = matrix(0,ncol = s_max/ds-1,nrow = s_max/ds-1)
+  B= 1:(s_max/ds-1)
+  for(i in 1:(s_max/ds-1))
+  {
+    B[i] = payoff[i+1,j+1]
+    if(i==1)
+    {
+      B[i]=B[i]-(s_max-k)*(0.5*r*(j+1)*dt-0.5*sigma^2*(j+1)^2*dt)
+    }
+  }
+  for(i in 1:(s_max/ds-1))
+  {
+   if(i==1)
+   {
+     A[i,i] =1+sigma^2*(j+1)^2*dt+r*dt
+     A[i,i+1] = -0.5*r*(j+1)*dt-0.5*sigma^2*(j+1)^2*dt
+   }
+   else if(i == (s_max/ds-1))
+   {
+     A[i,i-1]=0.5*r*(j+1)*dt-0.5*sigma^2*(j+1)^2*dt
+     A[i,i]=1+sigma^2*(j+1)^2*dt+r*dt
+   }
+    else
+    {
+     A[i,i-1]=0.5*r*(j+1)*dt-0.5*sigma^2*(j+1)^2*dt
+     A[i,i] = 1+sigma^2*(j+1)^2*dt+r*dt
+    A[i,i+1] = -0.5*r*(j+1)*dt-0.5*sigma^2*(j+1)^2*dt
+    }
+    
+  }
+ payoff[2:(s_max/ds),j] = solve(A,B)
+}
+cat("The Delta is",delta=(payoff[s_max/ds+1-s0-1,2]-payoff[s_max/ds+1-s0+1,2])/(2*ds))
+gamma = ((payoff[s_max/ds+1-s0-1,2]-payoff[s_max/ds+1-s0,2])/ds-(payoff[s_max/ds+1-s0,2]-payoff[s_max/ds+1-s0+1,2])/ds)/ds
+cat("\nThe gamma is",gamma)
+cat("\nThe thelta is",(payoff[s_max/ds+1-s0,N+1]-payoff[s_max/ds+1-s0,1])/t)
+```
+
+(b)
+
+```{r}
+d1=(log(s0/k)+(r+sigma^2/2)*t)/(sigma*sqrt(t))
+d2=d1-sigma*sqrt(t)
+c=s0*pnorm(d1)-k*exp(-r*t)*pnorm(d2)
+cat("The European option by BS method",c)
+cat("\nThe American option by CV method",c-payoff[s_max/ds+1-s0,1]+payoff[s_max/ds+1-s0,1])
+```
+## Q2
+
+```{r}
+CVaR_A = (0+1000*0.02)/0.05
+CVaR_B = (0+1000*0.04)/0.05
+CVaR_pi =(500*0.02+0.04*500)/0.05
+cat("The CVaR(A) is :",CVaR_A)
+cat("\nThe CVaR(B) is :",CVaR_B)
+cat("\nThe CVaR(pi) is :",CVaR_pi)
+cat("\nSince,CVaR(A)+CVaR(B)>CVaR(pi),CVaR is subadditivity")
+```
+## Q3
+
+Assume that the stock is $1 per share
+```{r}
+w=c(0.5,0.5)
+w_t = matrix(c(0.05,0.05),ncol = 1,nrow = 2)
+covariance = matrix(c(0.09,0.018,0.018,0.04),2,2)
+variance=w %*% covariance%*%w_t
+cat("The variance is :",variance)
+VaR_jointnormal = sqrt(variance)/sqrt(252)*300*sqrt(3)*qnorm(0.99)
+cat("\nThe 99% VaR under assumption of joint normality is :",VaR_jointnormal)
+VaR_student=sqrt(variance)/sqrt(252)*300*sqrt(3)*qt(0.99,df=5)
+cat("\nThe 99% VaR under assumption of student t is :",VaR_student)
+```
+## Q4
+
+(a)(b)
+
+```{r}
+library(MASS)
+numbers =mvrnorm(n = 10000,mu=c(0,0),Sigma =matrix(c(0.09,0.018,0.018,0.04),2,2))
+numbers = sort(numbers)
+n=0.05*length(numbers)
+sum=0
+for(i in 1:n)
+{
+  sum = sum+numbers[i]
+}
+cat("The 95% VaR of joint normal is",-numbers[n])
+cat("\nThe 95% CVaR of joint normal is",-sum/n)
+library(mvtnorm)
+tnumbers=rmvt(n=10000,sigma =matrix(c(0.09,0.018,0.018,0.04),2,2), df=5)
+tnumbers = sort(tnumbers)
+tsum=0
+for(i in 1:n)
+{
+  tsum = tsum + tnumbers[i]
+}
+cat("\nThe 95% VaR of student t is",-tnumbers[n])
+cat("\nThe 95% CVaR of student t is",-tsum/n)
+```
+
+(c) Assume that the risk-free rate is 0.01
+```{r}
+sigma_one =0.3*sqrt(2)/sqrt(252);sigma_two =0.2*sqrt(2)/sqrt(252)
+r=0.01
+s_one=40;s_two = 100
+t=2
+nums=mvrnorm(n = 10000,mu=c(0,0),Sigma =matrix(c(0.09*2/252,0.018*2/252,0.018*2/252,0.04*2/252),2,2))
+s_onenew = s_one*exp(nums)
+s_twonew = s_two*exp(nums)
+call_one=s_onenew*dnorm(((r+sigma_one^2/2)*0.5)/(sigma_one*sqrt(0.5)))-s_one*exp(-r*0.5)*dnorm(((r-sigma_one^2/2)*0.5))
+call_two=s_twonew*dnorm(((r+sigma_two^2/2)*0.5)/(sigma_two*sqrt(0.5)))-s_two*exp(-r*0.5)*dnorm(((r-sigma_two^2/2)*0.5))
+put_one=call_one-s_onenew+s_one*exp(-r*0.5)
+put_two=call_two-s_twonew+s_two*exp(-r*0.5)
+
+
+call_oneoriginal =s_one*dnorm(((r+sigma_one^2/2)*0.5)/(sigma_one*sqrt(0.5)))-s_one*exp(-r*0.5)*dnorm(((r-sigma_one^2/2)*0.5))
+call_twooriginal = s_two*dnorm(((r+sigma_two^2/2)*0.5)/(sigma_two*sqrt(0.5)))-s_two*exp(-r*0.5)*dnorm(((r-sigma_two^2/2)*0.5))
+put_oneoriginal = call_oneoriginal-s_one+s_one*exp(-r*0.5)
+put_twooriginal = call_twooriginal-s_two+s_two*exp(-r*0.5)
+
+return_one = sort(call_one*(-150)+put_one*(-150)-call_oneoriginal*(-150)-put_oneoriginal*(-150))
+return_two = sort(call_two*(-150)+put_two*(-150)-call_twooriginal*(-150)-put_twooriginal*(-150))
+
+cat("\nThe VaR of two portfolios are",-return_one[100],-return_two[100],"separately")
+
+```
+(d) Assume that the risk-free rate is 0.01
+```{r}
+library(MASS)
+sigma_one =0.3*sqrt(2)/sqrt(252);sigma_two =0.2*sqrt(2)/sqrt(252)
+s_one=40;s_two = 100
+t=2
+nums=mvrnorm(n = 10000,mu=c(0,0),Sigma =matrix(c(0.09*2/252,0.018*2/252,0.018*2/252,0.04*2/252),2,2))
+returns_one = s_one*(nums)
+returns_one = sort(returns_one)
+returns_two = s_two*(nums)
+returns_two = sort(returns_two)
+d1_one = (0.01+0.5*sigma_one^2)*0.5/(sigma_one*sqrt(0.5))
+d1_two = (0.01+0.5*sigma_two^2)*0.5/(sigma_two*sqrt(0.5))
+delta_one = dnorm(d1_one) ; delta_two = dnorm(d1_two) 
+returns_callone = delta_one*returns_one
+returns_calltwo = delta_two*returns_two
+return_sumone = returns_one+returns_callone
+return_sumtwo = returns_two+returns_calltwo
+cat("The VaR of portfolios are :",-return_sumone[100]*300,-return_sumtwo[100]*300,"separately")
+```
